@@ -1,0 +1,32 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- <Branch Name>
+
+pool: <Agent pool Name>
+
+variables:
+- group: <Varible group to store secrets or env variable>
+
+steps:
+- script: |
+    dir
+    echo Lets check secret variable
+    echo "Using the mapped env var for this task works and is recommended: $(pat)"
+    git clone https://$(pat)@<Git-url> 
+    dir
+  displayName: 'Secret Variable'
+  env:
+    MY_MAPPED_ENV_VAR: $(pat) # the recommended way to map to an env variable
+
+- task: PowerShell@2
+  inputs:
+    targetType: 'filePath'
+    filePath: $(System.DefaultWorkingDirectory)/<folder-name>/<script-file>.ps1
+    arguments: > # Use this to avoid newline characters in multiline string
+      -arg1 'value'
+      -arg2 'value'
+  displayName: 'Run Script'
