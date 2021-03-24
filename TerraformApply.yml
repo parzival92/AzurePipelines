@@ -1,0 +1,38 @@
+trigger:
+- users/v-sharmaab/instrumentation
+
+
+stages:
+   
+  - stage: Provision
+    displayName: 'Terraforming on Azure...'
+    jobs:
+    - job: Test
+      displayName: 'Check dir'
+      pool:
+       vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            dir
+          name: 'Checkdir'
+          workingDirectory:  $(System.DefaultWorkingDirectory)/terraform
+    - job: Provision
+      displayName: 'Provisioning Resources'
+      pool:
+       vmImage: 'ubuntu-latest'
+      variables: 
+      - group: DogfoodEnv
+      steps:
+      - script: |
+          set -e
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
+        name: 'RunTerraform'
+        displayName: 'Run Terraform'
+        workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+        env:
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+          ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          TF_VAR_location: $(Location)
