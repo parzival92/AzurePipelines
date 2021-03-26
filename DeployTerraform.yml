@@ -1,0 +1,78 @@
+trigger: none
+
+
+stages:
+  - stage: Terraform_Plan
+    displayName: 'Terraform Plan'
+    jobs:
+    - job: Test
+      displayName: 'Check dir'
+      pool:
+       vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            dir
+          name: 'Checkdir'
+          workingDirectory:  $(System.DefaultWorkingDirectory)/terraform
+    - job: Provision
+      displayName: 'Provisioning Resources'
+      pool:
+       vmImage: 'ubuntu-latest'
+      variables: 
+      - group: DogfoodEnv
+      steps:
+      - script: |
+          set -e
+          terraform init -input=false
+          terraform plan -out=tfplan -input=false
+        name: 'RunTerraform'
+        displayName: 'Run Terraform'
+        workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+        env:
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+          ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          TF_VAR_location: $(Location)
+      - task: CopyFiles@2
+        inputs:
+          SourceFolder: 'terraform'
+          Contents: |
+                   **/*
+                   !.terraform/**/*
+          TargetFolder: '$(Build.ArtifactStagingDirectory)'
+      
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: 'Build_Artifacts'
+
+  - stage: Apply_On_Dev
+    dependsOn: Terraform_Plan
+    displayName: 'Terraform Plan & Apply on Dev'
+    jobs:
+    
+    - job: Provision
+      displayName: 'Provisioning Resources'
+      pool:
+       vmImage: 'ubuntu-latest'
+      variables: 
+      - group: DogfoodEnv
+
+      steps:
+      - download: current
+        artifact: Build_Artifacts
+      - script: |
+          
+          set -e
+          terraform init -input=false
+          terraform apply -input=false tfplan
+        name: 'RunTerraform'
+        displayName: 'Run Terraform'
+        workingDirectory: $(Pipeline.Workspace)/Build_Artifacts
+        env:
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+          ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          TF_VAR_location: $(Location)
